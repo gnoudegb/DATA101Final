@@ -1,0 +1,147 @@
+---
+title: "Final Project"
+author: "Esse Noudegbessi"
+date: "5/5/2022"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+```{r}
+library(tidyverse)
+library(dbplyr)
+```
+
+Data on malaria gathered from the UNICEF will be used. This data had a list of incidence of the disease among children in various categories of indicators in the different continents of the world. The data is from: https://data.unicef.org/resources/dataset/malaria/ It is downloaded in csv form after being queried to select the desired values. The data has both quantitative and qualitative variables.
+The data contains the following information:
+```{r}
+malaria <- read.csv('full_malaria.csv')
+dim(malaria)
+
+sum(is.na(malaria))
+str(malaria)
+```
+
+## Answering questions
+
+Let's answer some questions:
+the trends between the indicator of weight and observation of the disease
+
+```{r}
+indicator_df <- malaria
+
+
+
+indicator_df[is.na(indicator_df)] <- 0
+indicator_df<- group_by(malaria, INDICATOR.Indicator) %>% summarize (observation= mean(as.numeric(OBS_VALUE.Observation.Value))) %>% select(INDICATOR.Indicator, observation) 
+indicator_df[is.na(indicator_df)] <- 0
+
+view(indicator_df)
+
+p<- ggplot(data=indicator_df, aes(observation)) 
+p+ geom_histogram()
+
+```
+
+Well, this did not tell us much outside from just a lot more observations are countable than not. Not helpful. Let's try to look  at the observations compared to the regions.
+
+```{r}
+regions_df <- malaria
+
+regions_df[is.na(regions_df)] <- 0
+regions_df<- group_by(malaria, REF_AREA.Geographic.area) %>% summarize (obs= sum(as.numeric(OBS_VALUE.Observation.Value))) %>% select(REF_AREA.Geographic.area, obs) %>% arrange(desc(obs))
+regions_df[is.na(regions_df)] <- 0
+
+view(regions_df)
+
+region<- head(regions_df, 40)
+ploting<- table(region)
+plot(ploting)
+```
+This graph is a bit hard to understand as well. This is to be expected. The graph is of the top 10 regions (regions and countries included) ranked by the sum of all observations over the years in each area. The observations are of course of grand proportions and really hard to read. thankfully, by dividing the data, we can look at the table created and decide on a country or region to look more into. Expectedly, the world is higher than all other regions. I was personally interested in central and west Africa (ranked 11), but East Asia and Pacific ranked higher (3rd), so lets look more into that country.
+
+
+```{r}
+malaria[is.na(malaria)] <- 0
+asia <- filter(malaria, REF_AREA.Geographic.area == "UNICEF_EAP: East Asia and Pacific", TIME_PERIOD.Time.period>2010, TIME_PERIOD.Time.period <2021) %>% group_by (TIME_PERIOD.Time.period) %>%summarize (obs= mean(as.numeric(OBS_VALUE.Observation.Value)))%>%  select( TIME_PERIOD.Time.period, obs)
+asia[is.na(asia)] <- 0
+
+view(asia)
+
+p<- ggplot(data=asia, aes(x=TIME_PERIOD.Time.period, y=obs)) 
+p+ geom_point()
+
+sd(asia$obs)
+mean(asia$obs)
+```
+This graph shows the trend very well over the years in East Asia and Pacific region. There is an overal decrease, with a peak in 2020 and a significant dip in 2021 which could signify that all the data for the year were yet to be included so the point was removed.
+
+
+Finally, let us do some data analysis to see if there are significant differences. For the purpose of this, we will put the data in similar area and do the means of the observations over the years.
+
+
+
+$ REF_AREA.Geographic.area                                                      : chr  "AFG: Afghanistan" "AFG: Afghanistan" "AFG: Afghanistan" "AFG: Afghanistan" ...
+ $ INDICATOR.Indicator                                                           : chr  "CME_ARR_10T19: Annual Rate of Reduction in Mortality Rate Age 10-19" "CME_ARR_SBR: Annual rate of reduction in stillbirth rate (over previous 20 years)" "CME_ARR_U5MR: Annual rate of reduction in under-five mortality rate (over previous 20 years)" "CME_MRM0: Neonatal mortality rate" ...
+ $ SEX.Sex                                                                       : chr  "_T: Total" "_T: Total" "_T: Total" "_T: Total" ...
+ $ TIME_PERIOD.Time.period                                                       : chr  "2020" "2019" "2020" "1987" ...
+ $ OBS_VALUE.Observation.Value                                                   : chr  "-0.9" "1.388107633" "4" "78.8727854446883" ...
+ $ UNIT_MULTIPLIER.Unit.multiplier                                               : chr  "" "" "" "" ...
+ $ UNIT_MEASURE.Unit.of.measure                                                  : chr  "PCNT: %" "PCNT: %" "PCNT: %" "D_PER_1000_B: Deaths per 1000 live births" ...
+ $ OBS_STATUS.Observation.Status                                                 : chr  "A: Normal value" "A: Normal value" "A: Normal value" "A: Normal value" ...
+ $ OBS_CONF.Observation.confidentaility                                          : chr  "" "" "" "" ...
+ $ LOWER_BOUND.Lower.Bound                                                       : chr  "" "" "2.7" "69.2721354618978" ...
+ $ UPPER_BOUND.Upper.Bound                                                       : chr  "" "" "5.4" "89.4820399824327" ...
+ $ WGTD_SAMPL_SIZE.Weighted.Sample.Size                                          : num  NA NA NA NA NA NA NA NA NA NA ...
+ $ OBS_FOOTNOTE.Observation.footnote                                             : chr  "" "" "" "" ...
+ $ SERIES_FOOTNOTE.Series.footnote                                               : chr  "" "" "" "" ...
+ $ DATA_SOURCE.Data.Source                                                       : chr  "UN_IGME" "UN_IGME" "UN_IGME" "UN_IGME" ...
+ $ SOURCE_LINK.Citation.of.or.link.to.the.data.source                            : chr  "" "" "" "" ...
+ $ CUSTODIAN.Custodian                                                           : chr  "" "" "" "" ...
+ $ TIME_PERIOD_METHOD.Time.period.activity.related.to.when.the.data.are.collected: chr  "" "" "" "" ...
+ $ REF_PERIOD.Reference.Period                                                   : chr  "2000-2020" "2000-2019" "2000-2020" "" ...
+ $ COVERAGE_TIME.The.period.of.time.for.which.data.are.provided                  : chr  "" "" "" "" ...
+ $ AGE.Current.age               
+
+```{r}
+malaria[is.na(malaria)] <- 0
+africa <- filter(malaria, REF_AREA.Geographic.area == "UNSDG_SUBSAHARANAFRICA: sub-Saharan Africa", TIME_PERIOD.Time.period>2010, TIME_PERIOD.Time.period <2021) %>% group_by (TIME_PERIOD.Time.period) %>%summarize (obs= sum(as.numeric(OBS_VALUE.Observation.Value)))%>%  select( TIME_PERIOD.Time.period, obs)
+africa[is.na(africa)] <- 0
+
+view(africa)
+
+p<- ggplot(data=africa, aes(x=TIME_PERIOD.Time.period, y=obs)) 
+p+ geom_point()
+
+sd(africa$obs)
+mean(africa$obs)
+```
+
+The null hypothesis is that there is no significant difference between the mean of occurrences in East Asia and Sub-Saharan Africa regions.
+
+```{r}
+set.seed(0)
+obs_asia <- rnorm(6000, mean = 221396.8, sd = 19360.15)
+obs_africa <- rnorm(6000, mean = 20098275, sd = 692879.3)
+t.test(obs_asia, obs_africa, var.equal = TRUE)
+```
+The null hypothesis is rejected given how small the p-value is.
+
+We will now do a goodness of fit test to determine if gender is associated to the indicator under 5 year of age
+
+```{r}
+indica <-c(child = sum(malaria$INDICATOR.Indicator=="CME_TMY1T4: Child deaths (aged 1-4 years)") ,other = sum(malaria$INDICATOR.Indicator!="CME_TMY1T4: Child deaths (aged 1-4 years)") )
+sex <-c (female = sum(malaria$SEX.Sex =="F:Female"),male = sum(malaria$SEX.Sex =="M:Male"))
+
+goodness <-table(indica, sex)
+view(goodness)
+
+chisq.test(goodness)
+```
+The chi-square was not a great way to determine relations between variables. This primarly because most of the variables are not binary and so the goodness test of fit even if it can run is not a good view.
+
+Overall, the regions have differences in the occurrences of malaria overall, and while certain seemed to have a constant decreasing in the presence of the disease, East Asia  may have become the highest cases numbers because of a sudden spike in 2020. No information on what caused it was found in the data. But this raised many questions and helped enlighten what research should be like from data gathering to analysis to me so I really enjoyed it.
+
